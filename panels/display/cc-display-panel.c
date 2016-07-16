@@ -78,6 +78,7 @@ struct _CcDisplayPanelPrivate
   GtkWidget      *primary_button;
   GtkListStore   *resolution_store;
   GtkWidget      *resolution_combo;
+  GtkWidget      *refresh_combo;
   GtkWidget      *rotation_combo;
   GtkWidget      *clone_checkbox;
   GtkWidget      *clone_label;
@@ -103,6 +104,7 @@ typedef struct
 
 static void rebuild_gui (CcDisplayPanel *self);
 static void on_clone_changed (GtkWidget *box, gpointer data);
+static void on_rate_changed (GtkComboBox *box, gpointer data);
 static gboolean output_overlaps (GnomeRROutputInfo *output, GnomeRRConfig *config);
 static void select_current_output_from_dialog_position (CcDisplayPanel *self);
 static void monitor_switch_active_cb (GObject *object, GParamSpec *pspec, gpointer data);
@@ -521,6 +523,57 @@ rebuild_rotation_combo (CcDisplayPanel *self)
     gtk_combo_box_set_active (GTK_COMBO_BOX (self->priv->rotation_combo), 0);
 }
 
+static char *
+make_rate_string (int hz)
+{
+    return g_strdup_printf (_("%d Hz"), hz);
+}
+
+static void
+rebuild_rate_combo (CcDisplayPanel *self)
+{
+    GHashTable *rates;
+    GnomeRRMode **modes;
+    int best;
+    int i;
+
+    clear_combo (self->priv->refresh_combo);
+
+    gtk_widget_set_sensitive (self->priv->refresh_combo,
+                              gnome_rr_output_info_is_active (self->priv->current_output));
+
+    if (!self->priv->current_output
+        || !(modes = get_current_modes (self)))
+   return;
+
+    rates = g_hash_table_new_full (
+   g_str_hash, g_str_equal, (GFreeFunc) g_free, NULL);
+
+    best = -1;
+    for (i = 0; modes[i] != NULL; ++i)
+    {
+   GnomeRRMode *mode = modes[i];
+   int rate;
+
+   // width = gnome_rr_mode_get_width (mode);
+   // height = gnome_rr_mode_get_height (mode);
+   rate = gnome_rr_mode_get_freq (mode);
+
+   if (gnome_rr_config_applicable (self->priv->current_configuration, self->priv->screen, NULL))
+   {
+       add_key (gtk_combo_box_get_model (GTK_COMBO_BOX (self->priv->refresh_combo)),
+                make_rate_string (rate),
+                FALSE, 0, 0, rate, -1);
+
+       if (rate > best)
+       best = rate;
+   }
+    }
+
+    if (!combo_select (self->priv->refresh_combo, make_rate_string (gnome_rr_output_info_get_refresh_rate (self->priv->current_output))))
+      combo_select (self->priv->refresh_combo, make_rate_string (best));
+}
+
 static int
 count_active_outputs (CcDisplayPanel *self)
 {
@@ -848,6 +901,7 @@ rebuild_gui (CcDisplayPanel *self)
   rebuild_current_monitor_label (self);
   rebuild_on_off_radios (self);
   rebuild_resolution_combo (self);
+  rebuild_rate_combo (self);
   rebuild_rotation_combo (self);
 
   gtk_widget_set_sensitive (self->priv->primary_button,
@@ -904,6 +958,21 @@ on_rotation_changed (GtkComboBox *box, gpointer data)
     gnome_rr_output_info_set_rotation (self->priv->current_output, rotation);
 
   foo_scroll_area_invalidate (FOO_SCROLL_AREA (self->priv->area));
+}
+
+static void
+on_rate_changed (GtkComboBox *box, gpointer data)
+{
+  CcDisplayPanel *self = data;
+  int rate;
+
+  if (!self->priv->current_output)
+    return;
+
+    if (get_mode (self->priv->refresh_combo, NULL, NULL, &rate, NULL))
+      gnome_rr_output_info_set_refresh_rate (self->priv->current_output, rate);
+
+    foo_scroll_area_invalidate (FOO_SCROLL_AREA (self->priv->area));
 }
 
 static void
@@ -1040,6 +1109,7 @@ on_resolution_changed (GtkComboBox *box, gpointer data)
 
   realign_outputs_after_resolution_change (self, self->priv->current_output, old_width, old_height);
 
+  rebuild_rate_combo (self);
   rebuild_rotation_combo (self);
 
   foo_scroll_area_invalidate (FOO_SCROLL_AREA (self->priv->area));
@@ -2574,7 +2644,9 @@ cc_display_panel_constructor (GType                  gtype,
   self->priv->resolution_combo = WID ("resolution_combo");
   g_signal_connect (self->priv->resolution_combo, "changed",
                     G_CALLBACK (on_resolution_changed), self);
-
+  self->priv->refresh_combo = WID ("refresh_combo");
+  g_signal_connect (self->priv->refresh_combo, "changed",
+                    G_CALLBACK (on_rate_changed), self);
   self->priv->rotation_combo = WID ("rotation_combo");
   g_signal_connect (self->priv->rotation_combo, "changed",
                     G_CALLBACK (on_rotation_changed), self);
@@ -2589,6 +2661,7 @@ cc_display_panel_constructor (GType                  gtype,
                     "clicked", G_CALLBACK (on_detect_displays), self);
 
   make_text_combo (self->priv->resolution_combo, 4);
+  make_text_combo (self->priv->refresh_combo, 3);
   make_text_combo (self->priv->rotation_combo, -1);
 
   /* Scroll Area */
