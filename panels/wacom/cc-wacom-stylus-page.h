@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors: Peter Hutterer <peter.hutterer@redhat.com>
  *          Bastien Nocera <hadess@hadess.net>
@@ -24,7 +23,7 @@
 #define _CC_WACOM_STYLUS_PAGE_H
 
 #include <gtk/gtk.h>
-#include "csd-wacom-device.h"
+#include "cc-wacom-tool.h"
 
 G_BEGIN_DECLS
 
@@ -68,9 +67,9 @@ struct _CcWacomStylusPageClass
 
 GType cc_wacom_stylus_page_get_type (void) G_GNUC_CONST;
 
-GtkWidget * cc_wacom_stylus_page_new (CsdWacomStylus *stylus);
+GtkWidget * cc_wacom_stylus_page_new (CcWacomTool *stylus);
 
-CsdWacomStylus * cc_wacom_stylus_page_get_stylus (CcWacomStylusPage *page);
+CcWacomTool * cc_wacom_stylus_page_get_tool (CcWacomStylusPage *page);
 
 void cc_wacom_stylus_page_set_navigation (CcWacomStylusPage *page,
 					  GtkNotebook *notebook);

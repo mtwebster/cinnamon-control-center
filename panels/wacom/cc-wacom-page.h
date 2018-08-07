@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors: Peter Hutterer <peter.hutterer@redhat.com>
  *          Bastien Nocera <hadess@hadess.net>
@@ -25,7 +24,7 @@
 
 #include <gtk/gtk.h>
 #include "cc-wacom-panel.h"
-#include "csd-wacom-device.h"
+#include "cc-wacom-device.h"
 
 G_BEGIN_DECLS
 
@@ -69,17 +68,21 @@ struct _CcWacomPageClass
 
 GType cc_wacom_page_get_type (void) G_GNUC_CONST;
 
-GtkWidget * cc_wacom_page_new (CcWacomPanel   *panel,
-			       CsdWacomDevice *stylus,
-			       CsdWacomDevice *pad);
+GtkWidget * cc_wacom_page_new (CcWacomPanel  *panel,
+			       CcWacomDevice *stylus,
+			       CcWacomDevice *pad);
 
-gboolean cc_wacom_page_update_tools (CcWacomPage    *page,
-				     CsdWacomDevice *stylus,
-				     CsdWacomDevice *pad);
+gboolean cc_wacom_page_update_tools (CcWacomPage   *page,
+				     CcWacomDevice *stylus,
+				     CcWacomDevice *pad);
 
 void cc_wacom_page_set_navigation (CcWacomPage *page,
 				   GtkNotebook *notebook,
 				   gboolean     ignore_first_page);
+
+void        cc_wacom_page_calibrate        (CcWacomPage *page);
+
+gboolean    cc_wacom_page_can_calibrate    (CcWacomPage *page);
 
 G_END_DECLS
 

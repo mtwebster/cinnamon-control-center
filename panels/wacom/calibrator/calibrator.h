@@ -25,7 +25,7 @@
 #define _calibrator_h
 
 #include <glib.h>
-#include "gui_gtk.h"
+#include "calibrator-gui.h"
 
 /*
  * Number of blocks. We partition the screen into 'num_blocks' x 'num_blocks'
@@ -66,9 +66,6 @@ enum
 
 struct Calib
 {
-    /* original axis values */
-    XYinfo old_axis;
-
     /* Geometry of the calibration window */
     GdkRectangle geometry;
 

@@ -3,63 +3,79 @@ cappletname = wacom
 
 SUBDIRS = calibrator
 
-AM_CPPFLAGS = 						\
-	$(PANEL_CFLAGS)					\
-	$(WACOM_PANEL_CFLAGS)				\
-	-I$(srcdir)/calibrator				\
-	-DCINNAMONLOCALEDIR="\"$(datadir)/locale\""	\
+AM_CPPFLAGS =                       \
+	$(PANEL_CFLAGS)                 \
+	$(WACOM_PANEL_CFLAGS)               \
+	-I$(srcdir)/calibrator              \
+	-I$(top_srcdir)/panels/common           \
+	-DGNOMELOCALEDIR="\"$(datadir)/locale\""    \
 	$(NULL)
 
-ccpanelsdir = $(PANELS_DIR)
+ccpanelsdir= $(PANELS_DIR)
 ccpanels_LTLIBRARIES = libwacom-properties.la
 
-BUILT_SOURCES =			\
-	cc-wacom-resources.c	\
+BUILT_SOURCES =         \
+	cc-wacom-resources.c    \
 	cc-wacom-resources.h
 
-libwacom_properties_la_SOURCES =	\
-	$(BUILT_SOURCES)		\
-	wacom-module.c			\
-	cc-wacom-panel.c		\
-	cc-wacom-panel.h		\
-	cc-wacom-page.c			\
-	cc-wacom-page.h			\
-	cc-wacom-stylus-page.c		\
-	cc-wacom-stylus-page.h		\
-	csd-wacom-device.c		\
-	csd-wacom-device.h		\
-	csd-input-helper.c		\
-	csd-input-helper.h		\
-	cc-wacom-nav-button.c		\
-	cc-wacom-nav-button.h		\
-	cc-wacom-mapping-panel.c	\
-	cc-wacom-mapping-panel.h	\
+libwacom_properties_la_SOURCES =    \
+	$(BUILT_SOURCES)        \
+	cc-drawing-area.c       \
+	cc-drawing-area.h       \
+	cc-tablet-tool-map.c        \
+	cc-tablet-tool-map.h        \
+	cc-wacom-device.c       \
+	cc-wacom-device.h       \
+	cc-wacom-tool.c         \
+	cc-wacom-tool.h         \
+	cc-wacom-panel.c        \
+	cc-wacom-panel.h        \
+	csd-wacom-key-shortcut-button.c \
+	csd-wacom-key-shortcut-button.h \
+	cc-wacom-button-row.c       \
+	cc-wacom-button-row.h       \
+	cc-wacom-page.c         \
+	cc-wacom-page.h         \
+	cc-wacom-stylus-page.c      \
+	cc-wacom-stylus-page.h      \
+	cc-wacom-nav-button.c       \
+	cc-wacom-nav-button.h       \
+	cc-wacom-mapping-panel.c    \
+	cc-wacom-mapping-panel.h    \
+	wacom-module.c \
 	csd-enums.h
 
-libwacom_properties_la_LIBADD = $(PANEL_LIBS) $(WACOM_PANEL_LIBS) $(builddir)/calibrator/libwacom-calibrator.la
+libwacom_properties_la_LIBADD = $(PANEL_LIBS) $(WACOM_PANEL_LIBS) $(builddir)/calibrator/libwacom-calibrator.la $(top_builddir)/panels/common/libdevice.la
+
 libwacom_properties_la_LDFLAGS = $(WARN_LDFLAGS) $(PANEL_LDFLAGS)
 
 noinst_PROGRAMS = test-wacom
 
-test_wacom_SOURCES =			\
-	$(BUILT_SOURCES)		\
-	test-wacom.c			\
-	cc-wacom-page.c			\
-	cc-wacom-page.h			\
-	cc-wacom-stylus-page.c		\
-	cc-wacom-stylus-page.h		\
-	cc-wacom-nav-button.c		\
-	cc-wacom-nav-button.h		\
-	cc-wacom-mapping-panel.c	\
-	cc-wacom-mapping-panel.h	\
-	csd-wacom-device.c		\
-	csd-wacom-device.h		\
-	csd-input-helper.c		\
-	csd-input-helper.h		\
+test_wacom_SOURCES =            \
+	$(BUILT_SOURCES)        \
+	test-wacom.c            \
+	cc-tablet-tool-map.c        \
+	cc-tablet-tool-map.h        \
+	cc-wacom-device.c       \
+	cc-wacom-device.h       \
+	cc-wacom-tool.c         \
+	cc-wacom-tool.h         \
+	cc-wacom-button-row.c       \
+	cc-wacom-button-row.h       \
+	csd-wacom-key-shortcut-button.c \
+	csd-wacom-key-shortcut-button.h \
+	cc-wacom-page.c         \
+	cc-wacom-page.h         \
+	cc-wacom-stylus-page.c      \
+	cc-wacom-stylus-page.h      \
+	cc-wacom-nav-button.c       \
+	cc-wacom-nav-button.h       \
+	cc-wacom-mapping-panel.c    \
+	cc-wacom-mapping-panel.h    \
 	csd-enums.h
 
-test_wacom_CFLAGS = $(AM_CFLAGS)
-test_wacom_LDADD = $(PANEL_LIBS) $(WACOM_PANEL_LIBS) $(builddir)/calibrator/libwacom-calibrator.la
+test_wacom_CPPFLAGS = $(AM_CPPFLAGS) -DFAKE_AREA
+test_wacom_LDADD = $(builddir)/calibrator/libwacom-calibrator-test.la $(top_builddir)/panels/common/libdevice.la $(PANEL_LIBS) $(WACOM_PANEL_LIBS)
 
 resource_files = $(shell glib-compile-resources --sourcedir=$(srcdir) --generate-dependencies $(srcdir)/wacom.gresource.xml)
 cc-wacom-resources.c: wacom.gresource.xml $(resource_files)
@@ -73,16 +89,7 @@ desktopdir = $(datadir)/applications
 desktop_in_files = cinnamon-wacom-panel.desktop.in
 desktop_DATA = $(desktop_in_files:.desktop.in=.desktop)
 
-WACOMDIR=$(top_srcdir)/../cinnamon-settings-daemon/plugins/wacom/
-WACOMFILES=csd-wacom-device.c csd-wacom-device.h
-COMMONDIR=$(top_srcdir)/../cinnamon-settings-daemon/plugins/common/
-COMMONFILES=csd-input-helper.c csd-input-helper.h
-update-from-gsd:
-	FILES="$(WACOMFILES)" DIR="$(WACOMDIR)" $(top_srcdir)/update-from-gsd.sh && changed=true ; \
-	FILES="$(COMMONFILES)" DIR="$(COMMONDIR)" $(top_srcdir)/update-from-gsd.sh && changed=true ; \
-	git commit -m "wacom: Update from cinnamon-settings-daemon" $(WACOMFILES) $(COMMONFILES)
-
 CLEANFILES = $(Desktop_in_files) $(desktop_DATA) $(BUILT_SOURCES)
-EXTRA_DIST = $(resource_files) wacom.gresource.xml
+EXTRA_DIST = $(resource_files) wacom.gresource.xml meson.build
 
 -include $(top_srcdir)/git.mk

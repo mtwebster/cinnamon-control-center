@@ -113,6 +113,14 @@ COMMON_MODULES="gtk+-3.0 >= $GTK_REQUIRED_VERSION
 
 PKG_CHECK_MODULES(LIBCINNAMON_CONTROL_CENTER, $COMMON_MODULES)
 PKG_CHECK_MODULES(LIBLANGUAGE, $COMMON_MODULES cinnamon-desktop fontconfig)
+
+PKG_CHECK_MODULES(DEVICES, $COMMON_MODULES)
+PKG_CHECK_MODULES(UDEV, gudev-1.0, have_udev=yes, have_udev=no)
+if test "x$have_udev" = xyes ; then
+    AC_DEFINE(HAVE_UDEV, 1, [System has udev])
+    AM_CONDITIONAL(HAVE_UDEV, [test "x$have_udev" = "xyes"])
+fi
+
 PKG_CHECK_MODULES(LIBSHORTCUTS, $COMMON_MODULES x11)
 PKG_CHECK_MODULES(SHELL, $COMMON_MODULES libcinnamon-menu-3.0 gio-unix-2.0 x11)
 PKG_CHECK_MODULES(BACKGROUND_PANEL, $COMMON_MODULES libxml-2.0 cinnamon-desktop
@@ -271,7 +279,8 @@ if test x$WANT_WACOM = xyes; then
                   cinnamon-settings-daemon >= $CSD_REQUIRED_VERSION
                   xi >= 1.2 x11 libwacom >= $LIBWACOM_REQUIRED_VERSION
                   cinnamon-desktop
-                  gtk+-3.0 >= 3.8.0])
+                  gtk+-3.0 >= 3.8.0
+                  clutter-gtk-1.0])
         build_wacom="true"
         AC_DEFINE(HAVE_WACOM, 1, [Define if wacom is being build])]
 fi

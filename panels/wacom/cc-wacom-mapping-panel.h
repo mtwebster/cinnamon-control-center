@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors: Jason Gerecke <killertofu@gmail.com>
  *
@@ -23,6 +22,7 @@
 #define CC_WACOM_MAPPING_PANEL_H_
 
 #include <gtk/gtk.h>
+#include "cc-wacom-device.h"
 
 G_BEGIN_DECLS
 
@@ -70,7 +70,7 @@ GtkWidget * cc_wacom_mapping_panel_new (void);
 
 
 void cc_wacom_mapping_panel_set_device (CcWacomMappingPanel *self,
-                                        CsdWacomDevice *device);
+                                        CcWacomDevice       *device);
 
 G_END_DECLS
 
