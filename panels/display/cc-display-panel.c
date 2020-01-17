@@ -948,7 +948,7 @@ rebuild_refresh_combo (CcDisplayPanel *self)
   for (i = 0; modes[i] != NULL; ++i)
     add_rate (self, modes[i], output_width, output_height, highest_rate);
 
-  current_rate = gnome_rr_output_info_get_refresh_rate (self->priv->current_output);
+  current_rate = gnome_rr_output_info_get_refresh_rate_f (self->priv->current_output);
   // legacy behavior - best rate is the highest - is this always true?
   current = make_refresh_string (current_rate,
                                  current_rate == highest_rate);
@@ -1175,7 +1175,7 @@ on_resolution_changed (GtkComboBox *box, gpointer data)
        */
       if (!self->priv->ignore_gui_changes)
         {
-          gnome_rr_output_info_set_refresh_rate (self->priv->current_output, rate);
+          gnome_rr_output_info_set_refresh_rate_f (self->priv->current_output, rate);
         }
 
       if (width == 0 || height == 0)
@@ -1203,7 +1203,7 @@ on_refresh_changed (GtkComboBox *box, gpointer data)
 
   if (get_mode (self->priv->refresh_combo, NULL, NULL, &rate, NULL))
     {
-      gnome_rr_output_info_set_refresh_rate (self->priv->current_output, rate);
+      gnome_rr_output_info_set_refresh_rate_f (self->priv->current_output, rate);
     }
 }
 
