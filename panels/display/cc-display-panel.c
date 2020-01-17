@@ -68,8 +68,6 @@ struct _CcDisplayPanelPrivate
   GnomeRROutputInfo         *current_output;
 
   GtkBuilder     *builder;
-  guint           focus_id;
-  guint           focus_id_hide;
 
   GtkWidget      *panel;
   GtkWidget      *current_monitor_event_box;
@@ -154,7 +152,6 @@ static void
 cc_display_panel_finalize (GObject *object)
 {
   CcDisplayPanel *self;
-  CcShell *shell;
   GtkWidget *toplevel;
 
   self = CC_DISPLAY_PANEL (object);
@@ -162,13 +159,6 @@ cc_display_panel_finalize (GObject *object)
   g_signal_handlers_disconnect_by_func (self->priv->screen, on_screen_changed, self);
   g_object_unref (self->priv->screen);
   g_object_unref (self->priv->builder);
-
-  shell = cc_panel_get_shell (CC_PANEL (self));
-  if (shell == NULL)
-    {
-        g_signal_handler_disconnect (GTK_WIDGET (self), self->priv->focus_id);
-        g_signal_handler_disconnect (GTK_WIDGET (self), self->priv->focus_id_hide);
-    }
 
   cc_rr_labeler_hide (self->priv->labeler);
   g_object_unref (self->priv->labeler);
@@ -2696,12 +2686,13 @@ cc_display_panel_constructor (GType                  gtype,
 
   shell = cc_panel_get_shell (CC_PANEL (self));
 
-  if (shell == NULL) {
-    self->priv->focus_id = g_signal_connect (GTK_WIDGET (self), "show",
-                                             G_CALLBACK (widget_visible_changed), NULL);
-    self->priv->focus_id_hide = g_signal_connect (GTK_WIDGET (self), "hide",
-                                                  G_CALLBACK (widget_visible_changed), NULL);
-  }
+  if (shell == NULL)
+    {
+      g_signal_connect (GTK_WIDGET (self), "show",
+                        G_CALLBACK (widget_visible_changed), NULL);
+      g_signal_connect (GTK_WIDGET (self), "hide",
+                        G_CALLBACK (widget_visible_changed), NULL);
+    }
 
   self->priv->panel = WID ("display-panel");
   g_signal_connect_after (self->priv->panel, "show",
