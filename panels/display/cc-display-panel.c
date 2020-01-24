@@ -119,7 +119,7 @@ static char *make_refresh_string (double rate, gboolean preferred);
 static GObject *cc_display_panel_constructor (GType                  gtype,
 					      guint                  n_properties,
 					      GObjectConstructParam *properties);
-static void on_screen_changed (GnomeRRScreen *scr, gpointer data);
+static void on_screen_changed (gpointer data);
 
 static void
 cc_display_panel_get_property (GObject    *object,
@@ -162,6 +162,7 @@ cc_display_panel_finalize (GObject *object)
   self = CC_DISPLAY_PANEL (object);
 
   g_signal_handlers_disconnect_by_func (self->priv->screen, on_screen_changed, self);
+  g_signal_handlers_disconnect_by_func (self, on_screen_changed, self);
   g_object_unref (self->priv->screen);
   g_object_unref (self->priv->builder);
 
@@ -310,11 +311,17 @@ should_show_rate (gint output_width,
 }
 
 static void
-on_screen_changed (GnomeRRScreen *scr,
-                   gpointer data)
+on_screen_changed (gpointer data)
 {
   GnomeRRConfig *current;
   CcDisplayPanel *self = data;
+  g_printerr ("SCREEN CHANGED\n");
+
+  g_signal_handlers_block_by_func (self->priv->screen, G_CALLBACK (on_screen_changed), self);
+
+  gnome_rr_screen_refresh (self->priv->screen, NULL);
+
+  g_signal_handlers_unblock_by_func (self->priv->screen, G_CALLBACK (on_screen_changed), self);
 
   current = gnome_rr_config_new_current (self->priv->screen, NULL);
   gnome_rr_config_ensure_primary (current);
@@ -1079,7 +1086,7 @@ rebuild_scale_combo (CcDisplayPanel *self)
     add_scale (self, scales[i]);
 
   current_scale = gnome_rr_output_info_get_scale (self->priv->current_output);
-
+  g_printerr ("Current scale for selected output: %f\n", current_scale);
   current = g_strdup_printf (_("%d%%"), (int) (current_scale * 100));
 
   if (!combo_select (self->priv->scale_combo, current))
@@ -2927,7 +2934,7 @@ cc_display_panel_constructor (GType                  gtype,
     }
 
   self->priv->screen = gnome_rr_screen_new (gdk_screen_get_default (), &error);
-  g_signal_connect (self->priv->screen, "changed", G_CALLBACK (on_screen_changed), self);
+  g_signal_connect_swapped (self->priv->screen, "changed", G_CALLBACK (on_screen_changed), self);
   if (!self->priv->screen)
     {
       error_message (NULL, _("Could not get screen information"), error->message);
@@ -2935,6 +2942,8 @@ cc_display_panel_constructor (GType                  gtype,
       g_object_unref (builder);
       return obj;
     }
+
+  g_signal_connect_swapped (self, "notify::scale-factor", G_CALLBACK (on_screen_changed), self);
 
   shell = cc_panel_get_shell (CC_PANEL (self));
 
@@ -3010,7 +3019,7 @@ cc_display_panel_constructor (GType                  gtype,
 
   gtk_box_pack_start (GTK_BOX (display_box), self->priv->area, TRUE, TRUE, 0);
 
-  on_screen_changed (self->priv->screen, self);
+  on_screen_changed (self);
 
   g_signal_connect_swapped (WID ("apply_button"),
                             "clicked", G_CALLBACK (apply), self);
