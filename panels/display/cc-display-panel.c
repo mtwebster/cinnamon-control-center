@@ -105,7 +105,7 @@ typedef struct
 } GrabInfo;
 
 static void rebuild_gui (CcDisplayPanel *self);
-static void on_clone_changed (GtkWidget *box, gpointer data);
+static void on_clone_changed (GtkWidget *box, gboolean state, gpointer data);
 static gboolean output_overlaps (CcDisplayPanel *self, GnomeRROutputInfo *output, GnomeRRConfig *config);
 static void select_current_output_from_dialog_position (CcDisplayPanel *self);
 static void monitor_switch_active_cb (GObject *object, GParamSpec *pspec, gpointer data);
@@ -1549,7 +1549,7 @@ output_info_supports_mode (CcDisplayPanel *self, GnomeRROutputInfo *info, int wi
 }
 
 static void
-on_clone_changed (GtkWidget *box, gpointer data)
+on_clone_changed (GtkWidget *box, gboolean state, gpointer data)
 {
   CcDisplayPanel *self = data;
 
