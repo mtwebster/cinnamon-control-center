@@ -286,7 +286,8 @@
               <object class="GtkLabel" id="clone_resolution_warning_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">(Mirroring may limit resolution options)</property>
+                <property name="margin_left">6</property>
+                <property name="label" translatable="yes">(may limit resolution options)</property>
               </object>
               <packing>
                 <property name="expand">False</property>

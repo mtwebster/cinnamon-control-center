@@ -106,6 +106,10 @@ typedef struct
 
 static void rebuild_gui (CcDisplayPanel *self);
 static void on_clone_changed (GtkWidget *box, gboolean state, gpointer data);
+static void on_scale_changed (GtkComboBox *box, gpointer data);
+static void on_resolution_changed (GtkComboBox *box, gpointer data);
+static void on_refresh_changed (GtkComboBox *box, gpointer data);
+static void on_rotation_changed (GtkComboBox *box, gpointer data);
 static gboolean output_overlaps (CcDisplayPanel *self, GnomeRROutputInfo *output, GnomeRRConfig *config);
 static void select_current_output_from_dialog_position (CcDisplayPanel *self);
 static void monitor_switch_active_cb (GObject *object, GParamSpec *pspec, gpointer data);
@@ -248,7 +252,6 @@ get_scaled_geometry (CcDisplayPanel *self,
                      int *width, int *height)
 {
     g_return_if_fail (GNOME_IS_RR_OUTPUT_INFO (info));
-
     float scale;
 
     gnome_rr_output_info_get_geometry (info, x, y, width, height);
@@ -315,7 +318,8 @@ on_screen_changed (gpointer data)
 {
   GnomeRRConfig *current;
   CcDisplayPanel *self = data;
-  g_printerr ("SCREEN CHANGED\n");
+
+  g_debug ("GnomeRRScreen::changed");
 
   g_signal_handlers_block_by_func (self->priv->screen, G_CALLBACK (on_screen_changed), self);
 
@@ -618,13 +622,18 @@ rebuild_rotation_combo (CcDisplayPanel *self)
   GnomeRRRotation current;
   int i;
 
+  g_signal_handlers_block_by_func (self->priv->rotation_combo, on_rotation_changed, self);
+
   clear_combo (self->priv->rotation_combo);
 
   gtk_widget_set_sensitive (self->priv->rotation_combo,
                             self->priv->current_output && gnome_rr_output_info_is_active (self->priv->current_output));
 
   if (!self->priv->current_output)
-    return;
+  {
+      g_signal_handlers_unblock_by_func (self->priv->rotation_combo, on_rotation_changed, self);
+      return;
+  }
 
   current = gnome_rr_output_info_get_rotation (self->priv->current_output);
 
@@ -649,6 +658,8 @@ rebuild_rotation_combo (CcDisplayPanel *self)
 
   if (!(selection && combo_select (self->priv->rotation_combo, selection)))
     gtk_combo_box_set_active (GTK_COMBO_BOX (self->priv->rotation_combo), 0);
+
+  g_signal_handlers_unblock_by_func (self->priv->rotation_combo, on_rotation_changed, self);
 }
 
 static int
@@ -956,12 +967,16 @@ rebuild_resolution_combo (CcDisplayPanel *self)
   guint32 preferred_id;
   GnomeRROutput *output;
 
+  g_signal_handlers_block_by_func (self->priv->resolution_combo, on_resolution_changed, self);
+
   clear_combo (self->priv->resolution_combo);
 
   if (!(modes = get_current_modes (self))
       || !self->priv->current_output
       || !gnome_rr_output_info_is_active (self->priv->current_output))
     {
+      g_signal_handlers_unblock_by_func (self->priv->resolution_combo, on_resolution_changed, self);
+
       gtk_widget_set_sensitive (self->priv->resolution_combo, FALSE);
       return;
     }
@@ -999,6 +1014,8 @@ rebuild_resolution_combo (CcDisplayPanel *self)
       g_free (str);
     }
 
+  g_signal_handlers_unblock_by_func (self->priv->resolution_combo, on_resolution_changed, self);
+
   g_free (current);
 }
 
@@ -1011,12 +1028,16 @@ rebuild_refresh_combo (CcDisplayPanel *self)
   int output_width, output_height;
   double current_rate, highest_rate;
 
+  g_signal_handlers_block_by_func (self->priv->refresh_combo, on_refresh_changed, self);
+
   clear_combo (self->priv->refresh_combo);
 
   if (!(modes = get_current_modes (self))
       || !self->priv->current_output
       || !gnome_rr_output_info_is_active (self->priv->current_output))
     {
+      g_signal_handlers_unblock_by_func (self->priv->refresh_combo, on_refresh_changed, self);
+
       gtk_widget_set_sensitive (self->priv->refresh_combo, FALSE);
       return;
     }
@@ -1047,6 +1068,8 @@ rebuild_refresh_combo (CcDisplayPanel *self)
       g_free (str);
     }
 
+  g_signal_handlers_unblock_by_func (self->priv->refresh_combo, on_refresh_changed, self);
+
   g_free (current);
 }
 
@@ -1060,12 +1083,16 @@ rebuild_scale_combo (CcDisplayPanel *self)
   float current_scale;
   float *scales;
 
+  g_signal_handlers_block_by_func (self->priv->scale_combo, on_scale_changed, self);
+
   clear_combo (self->priv->scale_combo);
 
   if (!(modes = get_current_modes (self))
       || !self->priv->current_output
       || !gnome_rr_output_info_is_active (self->priv->current_output))
     {
+      g_signal_handlers_unblock_by_func (self->priv->scale_combo, on_scale_changed, self);
+
       gtk_widget_set_sensitive (self->priv->scale_combo, FALSE);
       return;
     }
@@ -1086,7 +1113,9 @@ rebuild_scale_combo (CcDisplayPanel *self)
     add_scale (self, scales[i]);
 
   current_scale = gnome_rr_output_info_get_scale (self->priv->current_output);
-  g_printerr ("Current scale for selected output: %f\n", current_scale);
+
+  g_debug ("Current scale for selected output: %f", current_scale);
+
   current = g_strdup_printf (_("%d%%"), (int) (current_scale * 100));
 
   if (!combo_select (self->priv->scale_combo, current))
@@ -1098,6 +1127,8 @@ rebuild_scale_combo (CcDisplayPanel *self)
       combo_select (self->priv->scale_combo, str);
       g_free (str);
     }
+
+  g_signal_handlers_unblock_by_func (self->priv->scale_combo, on_scale_changed, self);
 
   g_free (current);
 }
