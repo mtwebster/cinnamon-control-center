@@ -983,7 +983,7 @@ rebuild_resolution_combo (CcDisplayPanel *self)
 
   g_assert (self->priv->current_output != NULL);
 
-  get_scaled_geometry (self, self->priv->current_output, NULL, NULL, &output_width, &output_height);
+  gnome_rr_output_info_get_geometry (self->priv->current_output, NULL, NULL, &output_width, &output_height);
   g_assert (output_width != 0 && output_height != 0);
 
   gtk_widget_set_sensitive (self->priv->resolution_combo, TRUE);
@@ -1236,7 +1236,7 @@ select_resolution_for_current_output (CcDisplayPanel *self)
 
   find_best_mode (modes, &width, &height);
 
-  set_scaled_geometry (self, self->priv->current_output, x, y, width, height);
+  gnome_rr_output_info_set_geometry (self->priv->current_output, x, y, width, height);
 }
 
 static void
@@ -1620,8 +1620,8 @@ on_clone_changed (GtkWidget *box, gboolean state, gpointer data)
 	int x, y;
 	if (output_info_supports_mode (self, outputs[i], width, height)) {
 	  gnome_rr_output_info_set_active (outputs[i], TRUE);
-	  get_scaled_geometry (self, outputs[i], &x, &y, NULL, NULL);
-	  set_scaled_geometry (self, outputs[i], x, y, width, height);
+	  gnome_rr_output_info_get_geometry (outputs[i], &x, &y, NULL, NULL);
+	  gnome_rr_output_info_set_geometry (outputs[i], x, y, width, height);
 	}
       }
     }
@@ -1660,8 +1660,12 @@ get_geometry (CcDisplayPanel *self, GnomeRROutputInfo *output, int *w, int *h)
     }
   else
     {
-      *h = gnome_rr_output_info_get_preferred_height (output);
-      *w = gnome_rr_output_info_get_preferred_width (output);
+      float scale;
+
+      scale = 1 / (gnome_rr_output_info_get_scale (output) / self->priv->pending_config_ui_scale);
+
+      *h = floor (gnome_rr_output_info_get_preferred_height (output) * scale);
+      *w = floor (gnome_rr_output_info_get_preferred_width (output) * scale);
     }
 
   apply_rotation_to_geometry (output, w, h);
@@ -1971,7 +1975,7 @@ output_is_aligned (CcDisplayPanel *self, GnomeRROutputInfo *output, GArray *edge
 static void
 get_output_rect (CcDisplayPanel *self, GnomeRROutputInfo *output, GdkRectangle *rect)
 {
-  get_scaled_geometry (self, output, &rect->x, &rect->y, &rect->width, &rect->height);
+  gnome_rr_output_info_get_geometry (output, &rect->x, &rect->y, &rect->width, &rect->height);
 
   apply_rotation_to_geometry (output, &rect->width, &rect->height);
 }
