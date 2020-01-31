@@ -1122,7 +1122,8 @@ rebuild_scale_combo (CcDisplayPanel *self)
     {
       char *str;
 
-      str = g_strdup_printf (_("%d%%"), (int) (1.0f * 100));
+      add_scale(self, current_scale);
+      str = g_strdup_printf (_("%d%%"), (int) (current_scale * 100));
 
       combo_select (self->priv->scale_combo, str);
       g_free (str);
@@ -2532,7 +2533,7 @@ on_area_paint (FooScrollArea  *area,
 }
 
 static void
-make_text_combo (GtkWidget *widget, int sort_column)
+make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
 {
   GtkComboBox *box = GTK_COMBO_BOX (widget);
   GtkListStore *store = gtk_list_store_new (
@@ -2561,7 +2562,7 @@ make_text_combo (GtkWidget *widget, int sort_column)
     {
       gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (store),
                                             sort_column,
-                                            GTK_SORT_DESCENDING);
+                                            reverse_sort ? GTK_SORT_ASCENDING : GTK_SORT_DESCENDING);
     }
 }
 
@@ -3031,10 +3032,10 @@ cc_display_panel_constructor (GType                  gtype,
   g_signal_connect (WID ("detect_displays_button"),
                     "clicked", G_CALLBACK (on_detect_displays), self);
 
-  make_text_combo (self->priv->resolution_combo, 4);
-  make_text_combo (self->priv->rotation_combo, -1);
-  make_text_combo (self->priv->refresh_combo, -1);
-  make_text_combo (self->priv->scale_combo, -1);
+  make_text_combo (self->priv->resolution_combo, 4, FALSE);
+  make_text_combo (self->priv->rotation_combo, -1, FALSE);
+  make_text_combo (self->priv->refresh_combo, -1, FALSE);
+  make_text_combo (self->priv->scale_combo, SCALE_COL, TRUE);
 
   /* Scroll Area */
   self->priv->area = (GtkWidget *)foo_scroll_area_new ();
