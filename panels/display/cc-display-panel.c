@@ -62,6 +62,7 @@ enum {
   DSCAN_COL,
   ILACED_COL,
   VSYNC_COL,
+  PREF_COL,
   NUM_COLS
 };
 
@@ -245,7 +246,7 @@ update_pending_ui_scale (CcDisplayPanel *self)
 
   self->priv->pending_config_ui_scale = ceilf (max_scale);
 
-  g_debug ("Update to pending global scale: %d\n", self->priv->pending_config_ui_scale);
+  g_debug ("Update to pending global scale: %.2f->%d\n", max_scale, self->priv->pending_config_ui_scale);
 }
 
 static void
@@ -324,11 +325,7 @@ on_screen_changed (gpointer data)
 
   g_debug ("GnomeRRScreen::changed");
 
-  g_signal_handlers_block_by_func (self->priv->screen, G_CALLBACK (on_screen_changed), self);
-
   gnome_rr_screen_refresh (self->priv->screen, NULL);
-
-  g_signal_handlers_unblock_by_func (self->priv->screen, G_CALLBACK (on_screen_changed), self);
 
   current = gnome_rr_config_new_current (self->priv->screen, NULL);
   gnome_rr_config_ensure_primary (current);
@@ -446,6 +443,7 @@ add_key (GtkTreeModel *model,
                                          RATE_COL, rate,
                                          SORT_COL, width * 10000 + height,
                                          ROTATION_COL, rotation,
+                                         PREF_COL, preferred,
                                          -1);
       return;
     }
@@ -512,10 +510,11 @@ add_mode (CcDisplayPanel *self,
 
 static void
 add_rate (CcDisplayPanel *self,
-          GnomeRRMode *mode,
-          gint  output_width,
-          gint  output_height,
-          double highest_rate)
+          GnomeRRMode    *mode,
+          gint            output_width,
+          gint            output_height,
+          double          highest_rate,
+          guint32         preferred_id)
 {
   int width, height;
   double rate;
@@ -531,8 +530,10 @@ add_rate (CcDisplayPanel *self,
     {
       GtkListStore *model;
       char *text;
+      gboolean preferred;
 
       model = gtk_combo_box_get_model (GTK_COMBO_BOX (self->priv->refresh_combo));
+      preferred = (gnome_rr_mode_get_id (mode) == preferred_id);
 
       text = make_refresh_string (rate, rate == highest_rate, doublescan, interlaced, vsync);
 
@@ -544,6 +545,7 @@ add_rate (CcDisplayPanel *self,
                                          DSCAN_COL, doublescan,
                                          ILACED_COL, interlaced,
                                          VSYNC_COL, vsync,
+                                         PREF_COL, preferred,
                                          -1);
 
       g_free (text);
@@ -552,7 +554,9 @@ add_rate (CcDisplayPanel *self,
 
 static void
 add_scale (CcDisplayPanel *self,
-           float           scale)
+           float           scale,
+           gint            width,
+           gint            height)
 {
   GtkListStore *model;
   char *text;
@@ -565,6 +569,8 @@ add_scale (CcDisplayPanel *self,
 
   gtk_list_store_insert_with_values (GTK_LIST_STORE (model), NULL, -1,
                                      TEXT_COL, text,
+                                     WIDTH_COL, width,
+                                     HEIGHT_COL, height,
                                      SCALE_COL, scale,
                                      SORT_COL, (int)(scale * 1000),
                                      -1);
@@ -920,19 +926,7 @@ make_refresh_string (double    rate,
     rate /= 2.0f;
   }
 
-  g_string_append_printf (str, _("%.2lf Hz"), rate);
-
-  if (vsync)
-  {
-    g_string_append_printf (str, _(" VSync"));
-  }
-
-  if (doublescan)
-  {
-    g_string_append_printf (str, _(" 2x"));
-  }
-
-  return g_string_free (str, FALSE);
+  return g_strdup_printf (_("%.2lf Hz"), rate);
 }
 
 static void
@@ -1003,7 +997,7 @@ rebuild_resolution_combo (CcDisplayPanel *self)
 {
   int i;
   GnomeRRMode **modes;
-  GnomeRRMode *mode;
+  GnomeRRMode *pref_mode;
   char *current;
   int output_width, output_height;
   guint32 preferred_id;
@@ -1035,8 +1029,8 @@ rebuild_resolution_combo (CcDisplayPanel *self)
 
   output = gnome_rr_screen_get_output_by_name (self->priv->screen,
                                                gnome_rr_output_info_get_name (self->priv->current_output));
-  mode = gnome_rr_output_get_preferred_mode (output);
-  preferred_id = gnome_rr_mode_get_id (mode);
+  pref_mode = gnome_rr_output_get_preferred_mode (output);
+  preferred_id = gnome_rr_mode_get_id (pref_mode);
 
   for (i = 0; modes[i] != NULL; ++i)
     add_mode (self, modes[i], output_width, output_height, preferred_id);
@@ -1044,9 +1038,9 @@ rebuild_resolution_combo (CcDisplayPanel *self)
   /* And force the preferred mode in the drop-down (when not in clone mode)
    * https://bugzilla.gnome.org/show_bug.cgi?id=680969 */
   if (!gnome_rr_config_get_clone (self->priv->current_configuration))
-   add_mode (self, mode, output_width, output_height, preferred_id);
+   add_mode (self, pref_mode, output_width, output_height, preferred_id);
 
-  gnome_rr_mode_get_flags (mode, NULL, &interlaced, NULL);
+  gnome_rr_mode_get_flags (pref_mode, NULL, &interlaced, NULL);
   current = make_resolution_string (output_width, output_height, output_interlaced);
 
   if (!combo_select (self->priv->resolution_combo, current))
@@ -1071,7 +1065,10 @@ rebuild_refresh_combo (CcDisplayPanel *self)
 {
   int i;
   GnomeRRMode **modes;
+  GnomeRRMode *pref_mode;
+  GnomeRROutput *output;
   char *current;
+  guint32 preferred_id;
   int output_width, output_height;
   double current_rate, highest_rate;
   gboolean highest_doublescan, highest_interlaced, highest_vsync;
@@ -1104,8 +1101,13 @@ rebuild_refresh_combo (CcDisplayPanel *self)
                      &highest_interlaced,
                      &highest_vsync);
 
+  output = gnome_rr_screen_get_output_by_name (self->priv->screen,
+                                               gnome_rr_output_info_get_name (self->priv->current_output));
+  pref_mode = gnome_rr_output_get_preferred_mode (output);
+  preferred_id = gnome_rr_mode_get_id (pref_mode);
+
   for (i = 0; modes[i] != NULL; ++i)
-    add_rate (self, modes[i], output_width, output_height, highest_rate);
+    add_rate (self, modes[i], output_width, output_height, highest_rate, preferred_id);
 
   current_rate = gnome_rr_output_info_get_refresh_rate_f (self->priv->current_output);
   gnome_rr_output_info_get_flags (self->priv->current_output, &output_doublescan, &output_interlaced, &output_vsync);
@@ -1168,7 +1170,7 @@ rebuild_scale_combo (CcDisplayPanel *self)
                                                        &n_supported_scales);
 
   for (i = 0; i < n_supported_scales; ++i)
-    add_scale (self, scales[i]);
+    add_scale (self, scales[i], output_width, output_height);
 
   current_scale = gnome_rr_output_info_get_scale (self->priv->current_output);
 
@@ -1180,7 +1182,7 @@ rebuild_scale_combo (CcDisplayPanel *self)
     {
       char *str;
 
-      add_scale(self, current_scale);
+      add_scale (self, current_scale, output_width, output_height);
       str = g_strdup_printf (_("%d%%"), (int) (current_scale * 100));
 
       combo_select (self->priv->scale_combo, str);
@@ -1222,7 +1224,7 @@ get_mode (GtkWidget       *widget,
           int             *width,
           int             *height,
           double          *rate,
-          double          *scale,
+          float           *scale,
           GnomeRRRotation *rot,
           gboolean        *doublescan, 
           gboolean        *interlaced,
@@ -1549,7 +1551,7 @@ static void
 on_scale_changed (GtkComboBox *box, gpointer data)
 {
   CcDisplayPanel *self = data;
-  double scale;
+  float scale;
   gint width, height;
 
   if (!self->priv->current_output)
@@ -1557,6 +1559,7 @@ on_scale_changed (GtkComboBox *box, gpointer data)
 
   if (get_mode (self->priv->scale_combo, NULL, NULL, NULL, &scale, NULL, NULL, NULL, NULL))
     {
+      g_printerr ("scale change: %.2f\n", scale);
       gnome_rr_output_info_set_scale (self->priv->current_output, scale);
       update_pending_ui_scale (self);
     }
@@ -1738,8 +1741,6 @@ apply_rotation_to_geometry (GnomeRROutputInfo *output, int *w, int *h)
 static void
 get_geometry (CcDisplayPanel *self, GnomeRROutputInfo *output, int *w, int *h)
 {
-  float crtc_scale;
-
   if (gnome_rr_output_info_is_active (output))
     {
       get_scaled_geometry (self, output, NULL, NULL, w, h);
@@ -2281,7 +2282,7 @@ on_output_event (FooScrollArea *area,
       if (foo_scroll_area_is_grabbed (area))
 	{
 	  GrabInfo *info = g_object_get_data (G_OBJECT (output), "grab-info");
-	  double scale = compute_scale (self);
+	  float scale = compute_scale (self);
 	  int old_x, old_y;
 	  int width, height;
 	  int new_x, new_y;
@@ -2618,6 +2619,173 @@ on_area_paint (FooScrollArea  *area,
 }
 
 static void
+quaternary_text_data_func (GtkCellLayout *cell_layout,
+                         GtkCellRenderer *cell,
+                         GtkTreeModel    *model,
+                         GtkTreeIter     *iter,
+                         gpointer         data)
+{
+    GtkWidget *combo = GTK_WIDGET (data);
+    const gchar *wname = gtk_buildable_get_name (GTK_BUILDABLE (combo));
+
+    if (g_strcmp0 (wname, "refresh_combo") == 0)
+    {
+        gboolean doublescan;
+        gtk_tree_model_get (model,
+                            iter,
+                            DSCAN_COL, &doublescan,
+                            -1);
+
+        if (doublescan)
+        {
+            gchar *text = g_strdup (_("DoubleScan"));
+
+            g_object_set (G_OBJECT (cell),
+                          "text", text,
+                          NULL);
+            g_free (text);
+        }
+        else
+        {
+            g_object_set (G_OBJECT (cell),
+                          "text", NULL,
+                          NULL);
+        }
+    }
+}
+
+static void
+tertiary_text_data_func (GtkCellLayout   *cell_layout,
+                          GtkCellRenderer *cell,
+                          GtkTreeModel    *model,
+                          GtkTreeIter     *iter,
+                          gpointer         data)
+{
+    GtkWidget *combo = GTK_WIDGET (data);
+    const gchar *wname = gtk_buildable_get_name (GTK_BUILDABLE (combo));
+
+    if (g_strcmp0 (wname, "refresh_combo") == 0)
+    {
+        gboolean vsync;
+        gtk_tree_model_get (model,
+                            iter,
+                            VSYNC_COL, &vsync,
+                            -1);
+
+        if (vsync)
+        {
+            gchar *text = g_strdup (_("VSync"));
+
+            g_object_set (G_OBJECT (cell),
+                          "text", text,
+                          NULL);
+            g_free (text);
+        }
+        else
+        {
+            g_object_set (G_OBJECT (cell),
+                          "text", NULL,
+                          NULL);
+        }
+    }
+}
+
+static void
+secondary_text_data_func (GtkCellLayout   *cell_layout,
+                          GtkCellRenderer *cell,
+                          GtkTreeModel    *model,
+                          GtkTreeIter     *iter,
+                          gpointer         data)
+{
+    GtkWidget *combo = GTK_WIDGET (data);
+    const gchar *wname = gtk_buildable_get_name (GTK_BUILDABLE (combo));
+
+    if (g_strcmp0 (wname, "refresh_combo") == 0)
+    {
+        gboolean preferred;
+        gtk_tree_model_get (model,
+                            iter,
+                            PREF_COL, &preferred,
+                            -1);
+
+        if (preferred)
+        {
+            gchar *text = g_strdup (_("Recommended"));
+
+            g_object_set (G_OBJECT (cell),
+                          "text", text,
+                          NULL);
+            g_free (text);
+        }
+        else
+        {
+            g_object_set (G_OBJECT (cell),
+                          "text", NULL,
+                          NULL);
+        }
+    }
+    else
+    if (g_strcmp0 (wname, "resolution_combo") == 0)
+    {
+        gboolean preferred;
+
+        gtk_tree_model_get (model,
+                            iter,
+                            PREF_COL, &preferred,
+                            -1);
+
+        if (preferred)
+        {
+            gchar *text = g_strdup (_("Recommended"));
+
+            g_object_set (G_OBJECT (cell),
+                          "text", text,
+                          NULL);
+            g_free (text);
+        }
+        else
+        {
+            g_object_set (G_OBJECT (cell),
+                          "text", NULL,
+                          NULL);
+        }
+    }
+    else
+    if (g_strcmp0 (wname, "scale_combo") == 0)
+    {
+        gint width, height;
+        float scale;
+
+        gtk_tree_model_get (model,
+                            iter,
+                            WIDTH_COL, &width,
+                            HEIGHT_COL, &height,
+                            SCALE_COL, &scale,
+                            -1);
+
+        if (scale != 1.0f)
+        {
+            gint looks_like_w, looks_like_h;
+
+            looks_like_w = ceilf (width * (1.0 / scale));
+            looks_like_h = ceilf (height * (1.0 / scale));
+            gchar *text = g_strdup_printf (_("<b>(%d x %d apparent resolution)</b>"), looks_like_w, looks_like_h);
+
+            g_object_set (G_OBJECT (cell),
+                          "markup", text,
+                          NULL);
+            g_free (text);
+        }
+        else
+        {
+            g_object_set (G_OBJECT (cell),
+                          "text", NULL,
+                          NULL);
+        }
+    }
+}
+
+static void
 make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
 {
   GtkComboBox *box = GTK_COMBO_BOX (widget);
@@ -2629,23 +2797,55 @@ make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
                                             G_TYPE_DOUBLE,          /* Frequency */
                                             G_TYPE_INT,             /* Width * Height */
                                             G_TYPE_INT,             /* Rotation */
-                                            G_TYPE_DOUBLE,          /* Scale */
+                                            G_TYPE_FLOAT,           /* Scale */
                                             G_TYPE_BOOLEAN,         /* DoubleScan */
                                             G_TYPE_BOOLEAN,         /* Interlaced */
-                                            G_TYPE_BOOLEAN);        /* VSync+ */
-
+                                            G_TYPE_BOOLEAN,         /* VSync+ */
+                                            G_TYPE_BOOLEAN);        /* Preferred */
 
   GtkCellRenderer *cell;
 
   gtk_cell_layout_clear (GTK_CELL_LAYOUT (widget));
+  gtk_cell_view_set_fit_model (GTK_CELL_VIEW (widget), FALSE);
 
   gtk_combo_box_set_model (box, GTK_TREE_MODEL (store));
 
   cell = gtk_cell_renderer_text_new ();
-  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, TRUE);
+  gtk_cell_renderer_set_alignment (cell, 0, 0.5);
+  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
   gtk_cell_layout_set_attributes (GTK_CELL_LAYOUT (box), cell,
                                   "text", 0,
                                   NULL);
+
+  cell = gtk_cell_renderer_text_new ();
+  gtk_cell_renderer_set_padding (cell, 10, 0);
+  gtk_cell_renderer_set_alignment (cell, 0, 0.5);
+  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
+  gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
+                                      cell,
+                                      (GtkCellLayoutDataFunc) secondary_text_data_func,
+                                      widget,
+                                      NULL);
+
+  cell = gtk_cell_renderer_text_new ();
+  gtk_cell_renderer_set_padding (cell, 0, 0);
+  gtk_cell_renderer_set_alignment (cell, 0, 0.5);
+  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
+  gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
+                                      cell,
+                                      (GtkCellLayoutDataFunc) tertiary_text_data_func,
+                                      widget,
+                                      NULL);
+
+  cell = gtk_cell_renderer_text_new ();
+  gtk_cell_renderer_set_padding (cell, 10, 0);
+  gtk_cell_renderer_set_alignment (cell, 0, 0.5);
+  gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
+  gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
+                                      cell,
+                                      (GtkCellLayoutDataFunc) quaternary_text_data_func,
+                                      widget,
+                                      NULL);
 
   if (sort_column != -1)
     {
