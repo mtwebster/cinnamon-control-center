@@ -2642,6 +2642,7 @@ quaternary_text_data_func (GtkCellLayout *cell_layout,
 
             g_object_set (G_OBJECT (cell),
                           "text", text,
+                          "visible", TRUE,
                           NULL);
             g_free (text);
         }
@@ -2649,6 +2650,7 @@ quaternary_text_data_func (GtkCellLayout *cell_layout,
         {
             g_object_set (G_OBJECT (cell),
                           "text", NULL,
+                          "visible", FALSE,
                           NULL);
         }
     }
@@ -2678,6 +2680,7 @@ tertiary_text_data_func (GtkCellLayout   *cell_layout,
 
             g_object_set (G_OBJECT (cell),
                           "text", text,
+                          "visible", TRUE,
                           NULL);
             g_free (text);
         }
@@ -2685,6 +2688,7 @@ tertiary_text_data_func (GtkCellLayout   *cell_layout,
         {
             g_object_set (G_OBJECT (cell),
                           "text", NULL,
+                          "visible", FALSE,
                           NULL);
         }
     }
@@ -2714,6 +2718,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
 
             g_object_set (G_OBJECT (cell),
                           "text", text,
+                          "visible", TRUE,
                           NULL);
             g_free (text);
         }
@@ -2721,6 +2726,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
         {
             g_object_set (G_OBJECT (cell),
                           "text", NULL,
+                          "visible", FALSE,
                           NULL);
         }
     }
@@ -2740,6 +2746,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
 
             g_object_set (G_OBJECT (cell),
                           "text", text,
+                          "visible", TRUE,
                           NULL);
             g_free (text);
         }
@@ -2747,6 +2754,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
         {
             g_object_set (G_OBJECT (cell),
                           "text", NULL,
+                          "visible", FALSE,
                           NULL);
         }
     }
@@ -2769,10 +2777,11 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
 
             looks_like_w = ceilf (width * (1.0 / scale));
             looks_like_h = ceilf (height * (1.0 / scale));
-            gchar *text = g_strdup_printf (_("<b>(%d x %d apparent resolution)</b>"), looks_like_w, looks_like_h);
+            gchar *text = g_strdup_printf (_("<b>%d x %d apparent resolution</b>"), looks_like_w, looks_like_h);
 
             g_object_set (G_OBJECT (cell),
                           "markup", text,
+                          "visible", TRUE,
                           NULL);
             g_free (text);
         }
@@ -2780,6 +2789,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
         {
             g_object_set (G_OBJECT (cell),
                           "text", NULL,
+                          "visible", FALSE,
                           NULL);
         }
     }
@@ -2804,9 +2814,14 @@ make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
                                             G_TYPE_BOOLEAN);        /* Preferred */
 
   GtkCellRenderer *cell;
+  GtkCellArea *area;
 
+  g_object_get (G_OBJECT (widget),
+                "cell-area", &area,
+                NULL);
+
+  gtk_cell_area_box_set_spacing (GTK_CELL_AREA_BOX (area), 5);
   gtk_cell_layout_clear (GTK_CELL_LAYOUT (widget));
-  gtk_cell_view_set_fit_model (GTK_CELL_VIEW (widget), FALSE);
 
   gtk_combo_box_set_model (box, GTK_TREE_MODEL (store));
 
@@ -2818,7 +2833,6 @@ make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
                                   NULL);
 
   cell = gtk_cell_renderer_text_new ();
-  gtk_cell_renderer_set_padding (cell, 10, 0);
   gtk_cell_renderer_set_alignment (cell, 0, 0.5);
   gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
   gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
@@ -2828,7 +2842,6 @@ make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
                                       NULL);
 
   cell = gtk_cell_renderer_text_new ();
-  gtk_cell_renderer_set_padding (cell, 0, 0);
   gtk_cell_renderer_set_alignment (cell, 0, 0.5);
   gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
   gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
@@ -2838,7 +2851,6 @@ make_text_combo (GtkWidget *widget, int sort_column, gboolean reverse_sort)
                                       NULL);
 
   cell = gtk_cell_renderer_text_new ();
-  gtk_cell_renderer_set_padding (cell, 10, 0);
   gtk_cell_renderer_set_alignment (cell, 0, 0.5);
   gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (box), cell, FALSE);
   gtk_cell_layout_set_cell_data_func (GTK_CELL_LAYOUT (box),
