@@ -170,6 +170,7 @@
           <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="spacing">6</property>
             <child>
               <object class="GtkSwitch" id="clone_switch">
                 <property name="visible">True</property>
@@ -186,11 +187,11 @@
               <object class="GtkLabel" id="clone_resolution_warning_label">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_left">6</property>
-                <property name="label" translatable="yes">(may limit resolution options)</property>
+                <property name="label" translatable="yes">This may limit resolution options</property>
+                <property name="xalign">0</property>
               </object>
               <packing>
-                <property name="expand">False</property>
+                <property name="expand">True</property>
                 <property name="fill">True</property>
                 <property name="position">1</property>
               </packing>
@@ -298,6 +299,56 @@
           <packing>
             <property name="left_attach">0</property>
             <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="clone_label1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Scale upwards</property>
+            <property name="xalign">1</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">5</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="tooltip_markup" translatable="yes">Ordinarily when a monitor is zoomed in, the global scale is set to the next higher whole number, and then scaled &lt;b&gt;down&lt;/b&gt; to achieve the target.  This will scale &lt;b&gt;up&lt;/b&gt; from the lower whole number instead.</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkSwitch" id="upscale_switch">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="halign">start</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="upscale_desc_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">This may yield better performance with slower hardware,</property>
+                <property name="xalign">0</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">5</property>
+            <property name="width">2</property>
           </packing>
         </child>
       </object>

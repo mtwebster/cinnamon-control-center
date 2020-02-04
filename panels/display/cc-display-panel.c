@@ -51,6 +51,9 @@ CC_PANEL_REGISTER (CcDisplayPanel, cc_display_panel)
 #define MINIMUM_WIDTH 675
 #define MINIMUM_HEIGHT 530
 
+#define INTERFACE_SETTINGS_SCHEMA "org.cinnamon.desktop.interface"
+#define UPSCALE_SETTINGS_KEY "upscale-fractional-scaling"
+
 enum {
   TEXT_COL,
   WIDTH_COL,
@@ -72,6 +75,7 @@ struct _CcDisplayPanelPrivate
   GnomeRRConfig  *current_configuration;
   CcRRLabeler *labeler;
   GnomeRROutputInfo         *current_output;
+  GSettings      *interface_settings;
 
   GtkBuilder     *builder;
 
@@ -158,6 +162,10 @@ cc_display_panel_set_property (GObject      *object,
 static void
 cc_display_panel_dispose (GObject *object)
 {
+  CcDisplayPanel *panel = CC_DISPLAY_PANEL (object);
+
+  g_clear_object (&panel->priv->interface_settings);
+
   G_OBJECT_CLASS (cc_display_panel_parent_class)->dispose (object);
 }
 
@@ -919,8 +927,6 @@ make_refresh_string (double    rate,
                      gboolean  interlaced,
                      gboolean  vsync)
 {
-  GString *str = g_string_new (NULL);
-
   if (doublescan || interlaced)
   {
     rate /= 2.0f;
@@ -2777,7 +2783,7 @@ secondary_text_data_func (GtkCellLayout   *cell_layout,
 
             looks_like_w = ceilf (width * (1.0 / scale));
             looks_like_h = ceilf (height * (1.0 / scale));
-            gchar *text = g_strdup_printf (_("<b>%d x %d apparent resolution</b>"), looks_like_w, looks_like_h);
+            gchar *text = g_strdup_printf (_("<b>scaled resolution: %d x %d</b>"), looks_like_w, looks_like_h);
 
             g_object_set (G_OBJECT (cell),
                           "markup", text,
@@ -3255,6 +3261,7 @@ cc_display_panel_constructor (GType                  gtype,
   CcDisplayPanel *self;
   CcShell *shell;
   GtkWidget *toplevel;
+  GtkWidget *widget;
   gchar *objects[] = {"display-panel", NULL};
 
   obj = G_OBJECT_CLASS (cc_display_panel_parent_class)->constructor (gtype, n_properties, properties);
@@ -3327,6 +3334,19 @@ cc_display_panel_constructor (GType                  gtype,
   self->priv->clone_switch = WID ("clone_switch");
   g_signal_connect (self->priv->clone_switch, "state-set",
                     G_CALLBACK (on_clone_changed), self);
+
+  self->priv->interface_settings = g_settings_new (INTERFACE_SETTINGS_SCHEMA);
+
+  widget = WID ("upscale_switch");
+
+  gtk_switch_set_active (GTK_SWITCH (widget),
+                         g_settings_get_boolean (self->priv->interface_settings,
+                         UPSCALE_SETTINGS_KEY));
+
+  g_settings_bind (self->priv->interface_settings,
+                   UPSCALE_SETTINGS_KEY,
+                   G_OBJECT (widget), "active",
+                   G_SETTINGS_BIND_DEFAULT);
 
   self->priv->clone_label    = WID ("clone_resolution_warning_label");
 
