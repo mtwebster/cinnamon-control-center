@@ -1226,6 +1226,20 @@ get_monitor_index_for_output (XID output_id)
     return -1;
 }
 
+static gchar *
+get_base_scale_string (guint value)
+{
+    switch (value)
+    {
+        case 1:
+            return g_strdup (_("Normal"));
+        case 2:
+            return g_strdup (_("Double (Hi-DPI)"));
+        default:
+            return g_strdup_printf ("%dx", value);
+    }
+}
+
 typedef struct
 {
   guint value;
@@ -1284,8 +1298,8 @@ add_base_scale_value (GtkTreeModel *model,
       gchar *text;
       g_debug ("adding base scale of %d to base scale combo", value);
 
-      text = g_strdup_printf ("%d", value);
-      g_printerr ("%s\n", text);
+      text = get_base_scale_string (value);
+
       gtk_list_store_insert_with_values (GTK_LIST_STORE (model), &iter, -1,
                                          BASE_SCALE_TEXT_COL, text,
                                          BASE_SCALE_VALUE_COL, value,
@@ -1320,6 +1334,7 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
   n_active = 0;
   max_base_scale = 0;
 
+  /* Find the optimal scale for each monitor, looking for the highest. */
   for (i = 0; outputs[i] != NULL; i++)
   {
     GnomeRROutputInfo *info = outputs[i];
@@ -1331,13 +1346,6 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
     }
 
     base_scale = get_max_base_scale_for_output (self->priv->screen, info);
-
-    iter = add_base_scale_value (GTK_TREE_MODEL (model), base_scale);
-    if (base_scale == current_base_scale)
-    {
-        selected_iter = iter;
-    }
-
     max_base_scale = MAX (max_base_scale, base_scale);
     n_active++;
   }
@@ -1350,11 +1358,16 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
     return;
   }
 
-  iter = add_base_scale_value (GTK_TREE_MODEL (model), max_base_scale + 1);
-  if ((max_base_scale + 1) == current_base_scale)
+  /* Now add 1 thru max_base_scale, and one past. */
+  for (i = 1; i <= max_base_scale + 1; i++)
+  {
+    iter = add_base_scale_value (GTK_TREE_MODEL (model), i);
+
+    if (i == current_base_scale)
     {
         selected_iter = iter;
     }
+  }
 
   gtk_widget_set_sensitive (self->priv->base_scale_combo, TRUE);
   gtk_combo_box_set_active_iter (self->priv->base_scale_combo, &selected_iter);
@@ -3070,7 +3083,10 @@ static void
 make_base_scale_combo (CcDisplayPanel *self)
 {
   GtkCellRenderer *cell;
+
   GtkComboBox *box = GTK_COMBO_BOX (self->priv->base_scale_combo);
+  gtk_cell_layout_clear (GTK_CELL_LAYOUT (box));
+
   GtkListStore *store = gtk_list_store_new (BASE_SCALE_NUM_COLS,
                                             G_TYPE_STRING,      /* Text */
                                             G_TYPE_INT);        /* Preferred */
