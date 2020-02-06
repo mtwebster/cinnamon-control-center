@@ -1803,6 +1803,9 @@ on_base_scale_changed (GtkComboBox *box, gpointer data)
     g_debug ("Setting current configuration's base scale to %d\n", new_value);
     gnome_rr_config_set_base_scale (self->priv->current_configuration, new_value);
   }
+
+  realign_outputs_after_scale_change (self, self->priv->current_output);
+  foo_scroll_area_invalidate (FOO_SCROLL_AREA (self->priv->area));
 }
 
 static void
