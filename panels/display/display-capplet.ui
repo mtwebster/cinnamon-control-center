@@ -252,7 +252,7 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="margin_top">1</property>
-            <property name="label" translatable="yes">Global scale factor</property>
+            <property name="label" translatable="yes">User interface scale</property>
             <property name="xalign">1</property>
           </object>
           <packing>
@@ -264,7 +264,7 @@
           <object class="GtkComboBox" id="base_scale_combo">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="tooltip_text" translatable="yes">This controls the global scale across all monitors.  Changing this does not change the apparent size of each monitor (as displayed in the Zoom level setting), but controls the starting global scale from which those individual monitors will achieve their zoom levels.   If you have performance issues, it may be helpful to lower this value.</property>
+            <property name="tooltip_text" translatable="yes">Adjusts the global scaling factor. This is used for high-dpi monitors.  Setting it to auto will have the system decide the best scale based on the primary monitor.</property>
             <property name="hexpand">True</property>
             <child>
               <object class="GtkCellRendererText" id="cellrenderertext3"/>
@@ -313,7 +313,7 @@
               <object class="GtkComboBox" id="scale_combo">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="tooltip_text" translatable="yes">This controls the apparent size of the monitor as you view it.  A higher zoom level will make screen elements appear larger, but you will have less area to work with.</property>
+                <property name="tooltip_text" translatable="yes">Allows adjustment of an individual monitor's scale factor.  This may not yield acceptable results on all hardware, and can be resource-intensive.</property>
                 <property name="hexpand">True</property>
                 <child>
                   <object class="GtkCellRendererText" id="cellrenderertext2"/>
