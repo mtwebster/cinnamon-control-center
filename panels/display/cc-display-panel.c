@@ -72,6 +72,7 @@ enum {
 enum {
   BASE_SCALE_TEXT_COL,
   BASE_SCALE_VALUE_COL,
+  AUTO_SCALE_COL,
   BASE_SCALE_NUM_COLS
 };
 
@@ -267,10 +268,14 @@ int_equals_float (gint _int, gfloat _float)
 static void
 update_apply_state (CcDisplayPanel *self)
 {
-    gboolean changed = !gnome_rr_config_equal (self->priv->current_configuration,
-                                               self->priv->old_configuration);
+    // gboolean changed = !gnome_rr_config_equal (self->priv->current_configuration,
+    //                                            self->priv->old_configuration);
+    // gtk_widget_set_sensitive (WID ("apply_button"), changed);
 
-    gtk_widget_set_sensitive (WID ("apply_button"), changed);
+    // Until and unless we can count on xrandr calls to apply cleanly, we need
+    // to allow re-applying the same configuration to potentially straighten things
+    // out.
+    gtk_widget_set_sensitive (WID ("apply_button"), TRUE);
 }
 
 static void
@@ -1254,6 +1259,32 @@ add_base_scale_value (GtkTreeModel *model,
     gtk_list_store_insert_with_values (GTK_LIST_STORE (model), &iter, -1,
                                        BASE_SCALE_TEXT_COL, text,
                                        BASE_SCALE_VALUE_COL, value,
+                                       AUTO_SCALE_COL, FALSE,
+                                       -1);
+
+    g_free (text);
+
+    return iter;
+}
+
+static GtkTreeIter
+add_auto_scale_value (CcDisplayPanel *self,
+                      GtkTreeModel   *model)
+{
+    GtkTreeIter iter;
+    gchar *text;
+    guint auto_scale_value;
+
+    auto_scale_value = gnome_rr_screen_calculate_best_global_scale (self->priv->screen, -1);
+
+    g_debug ("adding auto scale of %u to base scale combo", auto_scale_value);
+
+    text = g_strdup_printf (_("Automatic (%ux)"), auto_scale_value);
+
+    gtk_list_store_insert_with_values (GTK_LIST_STORE (model), &iter, -1,
+                                       BASE_SCALE_TEXT_COL, text,
+                                       BASE_SCALE_VALUE_COL, auto_scale_value,
+                                       AUTO_SCALE_COL, TRUE,
                                        -1);
 
     g_free (text);
@@ -1267,7 +1298,7 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
   GtkListStore *model;
   int i, current_base_scale;
   GtkTreeIter selected_iter;
-  GtkTreeIter iter;
+  GtkTreeIter auto_iter, iter;
 
   model = GTK_LIST_STORE (gtk_combo_box_get_model (GTK_COMBO_BOX (self->priv->base_scale_combo)));
 
@@ -1277,8 +1308,10 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
 
   current_base_scale = gnome_rr_config_get_base_scale (self->priv->current_configuration);
 
+  auto_iter = add_auto_scale_value (self, GTK_TREE_MODEL (model));
+
   /* Now add 1 thru max_base_scale, and one past. */
-  for (i = 0; i <= 2; i++)
+  for (i = 1; i <= 2; i++)
   {
     iter = add_base_scale_value (GTK_TREE_MODEL (model), i);
 
@@ -1288,7 +1321,12 @@ rebuild_base_scale_combo (CcDisplayPanel *self)
     }
   }
 
-  gtk_combo_box_set_active_iter (GTK_COMBO_BOX (self->priv->base_scale_combo), &selected_iter);
+  if (gnome_rr_config_get_auto_scale (self->priv->current_configuration))
+  {
+    gtk_combo_box_set_active_iter (GTK_COMBO_BOX (self->priv->base_scale_combo), &auto_iter);
+  } else {
+    gtk_combo_box_set_active_iter (GTK_COMBO_BOX (self->priv->base_scale_combo), &selected_iter);
+  }
 
   g_signal_handlers_unblock_by_func (self->priv->base_scale_combo, on_base_scale_changed, self);
 }
@@ -1697,6 +1735,7 @@ on_base_scale_changed (GtkComboBox *box, gpointer data)
   GtkTreeIter iter;
   GtkTreeModel *model;
   guint current_value, new_value;
+  gboolean current_auto_scale, new_auto_scale;
 
   if (!gtk_combo_box_get_active_iter (box, &iter))
   {
@@ -1705,16 +1744,19 @@ on_base_scale_changed (GtkComboBox *box, gpointer data)
   }
 
   current_value = gnome_rr_config_get_base_scale (self->priv->current_configuration);
+  current_auto_scale = gnome_rr_config_get_auto_scale (self->priv->current_configuration);
 
   model = gtk_combo_box_get_model (box);
   gtk_tree_model_get (model, &iter,
                       BASE_SCALE_VALUE_COL, &new_value,
+                      AUTO_SCALE_COL, &new_auto_scale,
                       -1);
 
-  if (new_value != current_value)
+  if (new_value != current_value || new_auto_scale != current_auto_scale)
   {
     g_debug ("Setting current configuration's base and fractional scale to %d\n", new_value);
     gnome_rr_config_set_base_scale (self->priv->current_configuration, new_value);
+    gnome_rr_config_set_auto_scale (self->priv->current_configuration, new_auto_scale);
     gnome_rr_output_info_set_scale (self->priv->current_output, (float) new_value);
   }
 
@@ -3059,7 +3101,8 @@ make_base_scale_combo (CcDisplayPanel *self)
 
   GtkListStore *store = gtk_list_store_new (BASE_SCALE_NUM_COLS,
                                             G_TYPE_STRING,      /* Text */
-                                            G_TYPE_INT);        /* Preferred */
+                                            G_TYPE_INT,
+                                            G_TYPE_BOOLEAN);        /* Preferred */
 
   gtk_combo_box_set_model (box, GTK_TREE_MODEL (store));
 
